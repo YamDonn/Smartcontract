@@ -1,0 +1,117 @@
+pragma solidity ^0.5.11; 
+contract DIY
+// Creating property and status of property. For enum, value 0=AlmostSold , 1=Sold
+{
+    uint totalPropertyCounter;
+    enum propertyStatus
+    {
+        AlmostSold,
+        Sold
+    }
+    
+// Defining the structure of the property which includes the id, value, actual address of property, eth_address and status of property    
+    struct propertyOwner
+    {
+        uint id;
+        uint value;
+        string phy_address;
+        address eth_address;
+        propertyStatus PropertyState;
+    }
+    
+// Mapping of the struct
+    mapping(uint => propertyOwner) public __properties_id;
+    mapping(uint => address) public __address_num;
+    mapping(address => propertyOwner[]) public __ownerProperties;
+ 
+// Defining address of owner(seller) and buyer (i.e. new owner)   
+    address owner;
+    address buyer;
+    
+// For beginning, counter is 0 and the owner is the one initiating the contract.
+    constructor() public
+    {
+        totalPropertyCounter = 0;
+        owner = msg.sender;
+    }
+    
+// Defines the function of retrieving property count.
+    function getNumberOfProperties() public view returns(uint)
+    {
+        return totalPropertyCounter;
+    }
+    
+// This is to control who can modify contract.
+    modifier isOwner
+    {
+        require(msg.sender == owner);
+        _;
+    }
+   
+// This event is to display the following statuses. 
+    event revealStatus(address eth_address, uint id, propertyStatus PropertyState );
+   
+// This is for Part A to add new property 
+    function addNewProperty(uint add_id, uint add_value, string memory add_phy_address, address owner_eth_address, propertyStatus add_status) public isOwner
+    {
+        totalPropertyCounter = totalPropertyCounter +1;
+        propertyOwner memory myProperty = propertyOwner ({
+            id: add_id,
+            value: add_value,
+            phy_address: add_phy_address,
+            eth_address: owner_eth_address,
+            PropertyState: add_status
+        });
+        __ownerProperties[owner_eth_address].push(myProperty);
+        emit revealStatus(owner_eth_address, add_id, add_status);
+    }
+ // This is for Part B, to check buyer and seller not the same.  
+    modifier buyerSellerNotSame
+    {
+        require(owner != buyer);
+        _;
+    }
+    
+// This is for selling of the property.    
+    event sell(address indexed _from, address indexed _to, string buyer_phy_address, uint id);
+    
+    function sellProperty(uint buyer_id, address buyer_eth_address, string memory buyer_phy_address) public buyerSellerNotSame returns(bool)
+    {
+        for(uint i=0; i<__ownerProperties[owner].length; i++)
+        {
+            if(__ownerProperties[owner][i].id == buyer_id)
+            {
+                propertyOwner memory newOwner = propertyOwner ({
+                    id: buyer_id,
+                    value: __ownerProperties[owner][i].value,
+                    phy_address: buyer_phy_address,
+                    eth_address: buyer_eth_address,
+                    PropertyState: propertyStatus.AlmostSold
+                });
+                __ownerProperties[buyer_eth_address].push(newOwner);
+                
+                delete __ownerProperties[owner][i];
+                
+                emit sell(owner, buyer_eth_address, buyer_phy_address, buyer_id);
+                return true;
+            }
+        }
+        return false;
+    }
+   
+   // This is for Part D 
+        function getProperty(address _landHolder, uint _id) public view returns (uint, uint, string memory, address)
+    {
+        return (__ownerProperties[_landHolder][_id].id, 
+                __ownerProperties[_landHolder][_id].value,
+                __ownerProperties[_landHolder][_id].phy_address,
+                __ownerProperties[_landHolder][_id].eth_address);
+                
+    }
+    // This is for Part E
+        function editDetails(uint _propId, uint _newValue) public returns (bool) {
+        require(__address_num[_propId] == address(0));
+        __properties_id[_propId].value = _newValue;
+        return true;
+    }  
+}
